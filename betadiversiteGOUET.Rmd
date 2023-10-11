@@ -7,7 +7,7 @@ output: github_document
 library(phyloseq)
 library(ggplot2)
 library(dplyr)
-devtools::load_all()
+devtools::load_all(path="course-material-main/R")
 ```
 
 ```{r}
