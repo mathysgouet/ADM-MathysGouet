@@ -3,6 +3,7 @@ title: "R Notebook"
 output: github_document
 ---
 
+#Ouvrir les différentes library
 ```{r}
 library(phyloseq)
 library(ggplot2)
@@ -11,6 +12,7 @@ devtools::load_all(path="course-material-main/R")
 ```
 
 ```{r}
+#création d'un chemin de répertoire en utilisant le package here. La fonction here permet de créer des chemins de fichiers
 output_beta <- here::here("outputs", "beta_diversity")
 if (!dir.exists(output_beta)) dir.create(output_beta, recursive = TRUE)
 ```
@@ -26,14 +28,16 @@ physeq <- readRDS(here::here("data",
 ```
 
 ```{r}
+#calcule les sommes par ligne des données dans le composant otu_table
 rowSums(physeq@otu_table@.Data)
 ```
 
 ```{r}
+#sommes des lectures des taxons (OTUs)
 readsumsdf <- data.frame(nreads = sort(taxa_sums(physeq), decreasing = TRUE),
                         sorted = 1:ntaxa(physeq),
                         type = "OTUs")
-
+#data frame pour les sommes des lectures des échantillons
 tmp <- data.frame(nreads = sort(sample_sums(physeq), decreasing = TRUE), 
                   sorted = 1:nsamples(physeq),
                   type = "Samples")
@@ -44,6 +48,7 @@ head(readsumsdf)
 ```
 
 ```{r}
+#Graphique et modification du graphique 
 ggplot(readsumsdf, aes(x = sorted, y = nreads)) +
   geom_bar(stat = "identity") +
   ggtitle("Total number of reads") +
@@ -51,16 +56,16 @@ ggplot(readsumsdf, aes(x = sorted, y = nreads)) +
   facet_wrap(~type, nrow = 1, scales = "free")
 ```
 ```{r}
-# set the seed for random sampling
-# it allows reproductibility
+# on fixe pour l'échantillonage aléatoire
+# permet la reproductibilité
 set.seed(10000)
 
-# minimum reads in a sample
 min(rowSums(physeq@otu_table@.Data))
 ```
 ```{r}
+#on détermine combien de lecture par échantillon
 physeq_rar <- rarefy_even_depth(physeq, sample.size = 800)
-rowSums(physeq_rar@otu_table@.Data) #how many reads per sample
+rowSums(physeq_rar@otu_table@.Data) 
 ```
 ```{r}
 physeq
@@ -69,8 +74,7 @@ physeq
 physeq_rar
 ```
 ```{r}
-# we first replace the zeros using
- # the Count Zero Multiplicative approach
+# Commencer par remplacer les zéros en utilisant l'approche de la multiplication par zéro
 tmp <- zCompositions::cmultRepl(physeq@otu_table,
                                 method = "CZM",
                                 label = 0,
@@ -81,7 +85,6 @@ physeq_clr_asv <- apply(tmp, 1, function(x) log(x) - mean(log(x)))
 ```
 
 ```{r}
-#create a new phyloseq object with CLR tranformed counts
 physeq_clr <- physeq
 otu_table(physeq_clr) <- otu_table(t(physeq_clr_asv),
                                    taxa_are_rows = FALSE)
@@ -92,6 +95,7 @@ data.frame(physeq_clr@otu_table@.Data[1:5, 1:10])
 physeq_phylum <- physeq_rar %>%
   tax_glom(taxrank = "Family") %>%                     # agglomerate at the Family level
   transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
+#Transformation en abondances relatives
   psmelt() %>%                                         # Melt to long format
   filter(Abundance > 0.02) %>%                         # Filter out low abundance taxa
   arrange(Family)                                      # Sort data frame alphabetically by phylum
@@ -103,13 +107,17 @@ head(physeq_phylum)
 pdf(file="treemap.pdf", wi = 7, he = 7)
 
 treemap::treemap(physeq_phylum, index=c("Class", "Family"), vSize="Abundance", type="index",
-        fontsize.labels=c(15,12),                # size of labels. Give the size per level of aggregation: size for group, size for subgroup, sub-subgroups...
+        fontsize.labels=c(15,12),              
+        
+#définirn la taille par niveau d'agrégation : taille pour le groupe, taille pour le sous-groupe, sous-sous-groupes.
         fontcolor.labels=c("white","black"),    # Color of labels
         fontface.labels=c(2,1),                  # Font of labels: 1,2,3,4 for normal, bold, italic, bold-italic...
         align.labels=list(
           c("center", "center"), 
           c("left", "bottom")),                 # Where to place labels in the rectangle?
-        overlap.labels=0.5,                      # number between 0 and 1 that determines the tolerance of the overlap between labels. 0 means that labels of lower levels are not printed if higher level labels overlap, 1  means that labels are always printed. In-between values, for instance the default value .5, means that lower level labels are printed if other labels do not overlap with more than .5  times their area size.
+        overlap.labels=0.5,   
+#"Nombre compris entre 0 et 1 qui détermine la tolérance du chevauchement entre les étiquettes. 0 signifie que les étiquettes des niveaux inférieurs ne sont pas affichées si les étiquettes des niveaux supérieurs se chevauchent, 1 signifie que les étiquettes sont toujours affichées. Les valeurs intermédiaires, par exemple la valeur par défaut de 0,5, signifient que les étiquettes des niveaux inférieurs sont affichées si d'autres étiquettes ne se chevauchent pas de plus de 0,5 fois leur taille."
+
         inflate.labels=F, # If true, labels are bigger when rectangle is bigger.
         border.col=c("black","white"),          #Color of the boders separating the taxonomic levels
         border.lwds=c(4,2),
@@ -122,6 +130,7 @@ treemap::treemap(physeq_phylum, index=c("Class", "Family"), vSize="Abundance", t
 ```
 
 ```{r}
+#ce code sert à visualiser la distribution des taxons au niveau de la famille et de la classe en utilisant un graphique de type treemap. Permet de mieux comprendre la composition taxonomique des échantillons.
 tmp <- transform_sample_counts(physeq,function(x) {x/sum(x)} ) %>%
   psmelt() %>%
   group_by(Family, Class) %>%
@@ -145,6 +154,9 @@ ggplot(tmp,aes(area=abundance,label=Family,fill=Class,subgroup=Class))+
 ```{r}
 ggsave(here::here(output_beta,"treemap_treemapify.pdf"))
 ```
+
+
+#ce code sert à créer un graphique à barres pour visualiser la composition de la communauté microbiologique en fonction des familles de taxons, en mettant en évidence les familles les plus abondantes.
 ```{r}
 ggplot(physeq_phylum, aes(x = Sample, y = Abundance, fill = Family)) + 
   geom_bar(stat = "identity") +
@@ -179,10 +191,13 @@ physeq_rar_jaccard <- sqrt(physeq_rar_jaccard)
 ```{r}
 ape::is.rooted(physeq_rar@phy_tree)
 ```
+
+#calcule le point médian d'un arbre phylogénétique et le stocke dans un objet physeq_rar
 ```{r}
 phy_tree(physeq_rar) <- phangorn::midpoint(physeq_rar@phy_tree)
 ```
 
+#calcule plusieurs distances UniFrac en comparant les données de comptage des OTUs avec l'arbre phylogénétique.
 ```{r}
 unifracs <- GUniFrac::GUniFrac(physeq_rar@otu_table@.Data, physeq_rar@phy_tree, alpha=c(0, 0.5, 1))$unifracs
 ```
@@ -191,6 +206,7 @@ unifracs <- GUniFrac::GUniFrac(physeq_rar@otu_table@.Data, physeq_rar@phy_tree, 
 physeq_rar_du <- unifracs[, , "d_UW"]   # Unweighted UniFrac
 ```
 
+#e code prend des données d'abondance relative dans un objet Phyloseq, puis calcule la distance Bray-Curtis entre les échantillons en utilisant ces données. 
 ```{r}
 # physeq_rar_bray <- vegan::vegdist(physeq_rar@otu_table@.Data, method = "bray")
 
@@ -213,6 +229,9 @@ data.frame(position = seq_along(dist_methods),
 dist_methods <- dist_methods[c(1, 2, 10, 8)]
 dist_methods
 ```
+
+
+#effectuer une analyse PCoA avec différentes méthodes de calcul de distances et crée des graphiques PCoA pour chaque méthode.
 ```{r}
 #Loop through each distance method, save each plot to a list, called plist.
 plist <- vector("list")
@@ -237,6 +256,8 @@ for(i in dist_methods){
 df <- plyr::ldply(plist, function(x) x$data)
 head(df)
 ```
+
+#affiche les résultats de l'ordination PCoA
 ```{r}
 names(df)[1] <- "distance"
 
@@ -252,6 +273,7 @@ ggplot(df, aes(Axis.1, Axis.2, color = Geo)) +
 physeq_clr_dist <- phyloseq::distance(physeq_clr, method = "euclidean")
 ```
 
+#analyse de regroupement hiérarchique avec différentes méthodes et affiche les dendrogrammes correspondants pour comparer les résultats de chaque méthode
 ```{r}
 #Simple aggregation criterion
 spe_single <- hclust(physeq_clr_dist, method = "single")
@@ -271,6 +293,9 @@ plot(spe_complete, main = "complete")
 plot(spe_upgma, main = "UPGMA")
 plot(spe_ward, main = "ward")
 ```
+
+# calculent la corrélation cophénétique entre les matrices de distances originales (physeq_clr_dist) et les matrices de distances cophénétiques pour chaque méthode de regroupement agglomératif spécifiée (single, complete, UPGMA, Ward). La corrélation cophénétique évalue la fidélité avec laquelle la structure de regroupement dans les données d'origine est préservée dans le dendrogramme résultant de chaque méthode de regroupement. Un score de corrélation élevé indique une meilleure préservation de la structure de distance originale.
+
 ```{r}
 #Cophenetic correlation
 spe_single_coph <- cophenetic(spe_single)
@@ -283,6 +308,7 @@ spe_ward_coph <- cophenetic(spe_ward)
 cor(physeq_clr_dist, spe_ward_coph)
 ```
 
+# Evaluer visuellement la corrélation entre les distances cophénétiques et les distances observées, en utilisant des graphiques de dispersion pour chaque méthode. Cela permet de comparer la performance des méthodes de regroupement en termes de préservation de la structure de distance originale.
 ```{r}
 plot_coph_cor <- function(cophenetic_distance, hclust_type){
 
@@ -339,6 +365,7 @@ install.packages("NbClust", lib = ".")
 library("NbClust", lib.loc = ".")
 nclust <- nb_clust_all(data = t(physeq_clr_asv), seed = 1000)
 ```
+
 ```{r}
 #Cut the dendrogram in order to obtain K groups and compare their compositionC
 k <- 2 # Number of groups given by the fusion level plot
@@ -351,6 +378,8 @@ table(spe_upgma_clust)
 spe_upgma_clust2 <- data.frame(UPGMA_clusters = spe_upgma_clust)
 ```
 
+
+#dedogramme
 ```{r}
 # Plot dendrogram with group labels
 plot(spe_upgma,
@@ -411,6 +440,8 @@ heat <- t(base::scale(selection30_asv))
 head(data.frame(heat))
 ```
 
+
+#crée un Heatmap avec ComplexeHeetmap
 ```{r}
 ComplexHeatmap::Heatmap(
   heat,
@@ -434,6 +465,10 @@ myname <- paste(rownames(taxon), taxon$Phylum, taxon$Family, sep="_")
 colnames(selection30_asv) <- myname
 ```
 
+
+#Le script génère un Heatmap interactif avec des Z-scores pour visualiser les données et les regrouper en fonction de la similarité.
+
+
 ```{r}
 #re-run Z-score to take into account the colnames change
 heat <- t(scale(selection30_asv))
@@ -456,7 +491,7 @@ ComplexHeatmap::Heatmap(
   column_names_gp= grid::gpar(fontsize = 6)
   )
 ```
-
+#Heatmap interactif qui inclut des graphiques en boîte pour les lignes (ASV), des annotations personnalisées en haut et à gauche, ainsi que des options de regroupement et de légende pour visualiser les données de manière détaillée.
 ```{r}
 boxplot <- ComplexHeatmap::anno_boxplot(t(selection30_asv), 
                                         which = "row",
@@ -489,6 +524,7 @@ ComplexHeatmap::Heatmap(
   )
 ```
 
+#génèrer un screeplot pour évaluer la structure des données et la variance expliquée par les composantes principales dans le cadre de l'analyse PCA
 ```{r}
 #prepare the ASV table to add taxonomy
 tax_CLR <-  as.data.frame(tax_table(physeq_clr)) # get taxnomic table
@@ -516,6 +552,8 @@ horn$n
 elbow <- PCAtools::findElbowPoint(p$variance)
 elbow
 ```
+
+#Faire un Plot du PCA EN CHANgeant les paramètres. 
 ```{r}
 #Plotting the PCA
 PCAtools::biplot(
@@ -527,6 +565,8 @@ PCAtools::biplot(
   legendPosition = "right"
 )
 ```
+
+#permet de mettre plusieurs dimensions
 ```{r}
 PCAtools::biplot(
   p, 
@@ -543,7 +583,7 @@ PCAtools::biplot(
   legendPosition = "right"
 )
 ```
-
+#créer un graphique de corrélation entre les composantes principales et des variables environnementales.
 ```{r}
 PCAtools::eigencorplot(
   p,
@@ -567,6 +607,7 @@ PCAtools::eigencorplot(
 )
 ```
 
+# Creer un data frame nommé "hull" qui contient les coordonnées bidimensionnelles Axis.1 et Axis.2 des échantillons
 ```{r}
 #BPCoA on Bray-Curtis dissimilarity
 pcoa_asv <- ape::pcoa(physeq_rar_bray)
@@ -599,6 +640,11 @@ hull_data <- hull %>%
 
 head(hull_data)
 ```
+
+
+#permet de visualiser la distribution des échantillons et leurs regroupements géographiques dans un espace bi-dimensionnel.
+
+
 ```{r}
 ggplot(data = hull, aes(x = Axis.1, y = Axis.2)) +
   geom_hline(yintercept = 0, colour = "lightgrey", linetype = 2) +
