@@ -4,26 +4,52 @@ output: github_document
 date: "2023-11-29"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+refdb_folder <- here::here("ANF-cours03","sequence")
+refdb_folder
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{bash}
+cp -R course-material-main/data/raw/ ./data/
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+if (!dir.exists(refdb_folder)) dir.create(refdb_folder, recursive = TRUE)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+devtools::load_all(path = "/home/rstudio/ANF-cours03/course-material-main/R")
+```
+```{r}
+path_to_fastqs <- here::here("ANF-cours03","sequence")
+```
+
+```{r}
+fnFs <- sort(list.files(path_to_fastqs,
+                        pattern = "_1.fastq.gz",
+                        full.names = TRUE))
+```
+
+```{r}
+fnRs <- sort(list.files(path_to_fastqs,
+                        pattern = "_2.fastq.gz",
+                        full.names = TRUE))
+```
+
+```{r}
+sample_names <- basename(fnFs) |>
+  strsplit(split = "_") |>
+  sapply(head, 1)
+```
+
+```{r}
+basename(fnFs) |>
+  head()
+```
+```{r}
+basename(fnFs) |>
+  strsplit(split = "_") |>
+  head()
+```
+
